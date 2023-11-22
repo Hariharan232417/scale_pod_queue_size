@@ -14,6 +14,7 @@ import com.jcraft.jsch.JSch;
 import com.jcraft.jsch.JSchException;
 import com.jcraft.jsch.Session;
 
+import io.prometheus.client.Gauge;
 import io.prometheus.client.hotspot.DefaultExports;
 import io.restassured.RestAssured;
 import io.restassured.config.ObjectMapperConfig;
@@ -31,6 +32,11 @@ public class Node_Queue_Size_Custom_Metrics {
 //            .help("Number of sessions in queue")
 //            .labelNames("node_id", "node_uri") // Adding labels for node identification
 //            .register();
+	
+	private static final Gauge sessionQueueSize = Gauge.build()
+            .name("selenium_grid_session_queue_size")
+            .help("Number of sessions in queue")
+            .register();
 	
 	static String pemFile = "aztldevops_key.pem";
 	static String user = "azureuser";
@@ -55,7 +61,9 @@ public class Node_Queue_Size_Custom_Metrics {
 
         ip = args[0];
         try {
-			gridUrl = "http://"+args[0]+":"+"32000"+"/graphql";
+			//gridUrl = "http://"+args[0]+":"+"32000"+"/graphql";
+			
+			gridUrl = "http://98.70.1.186:"+"32000"+"/graphql";
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -73,7 +81,7 @@ public class Node_Queue_Size_Custom_Metrics {
         while (true) {
             fetchAndSetSessionQueueSizesForAllNodes();
             try {
-                Thread.sleep(60000); // Sleep for 60 seconds
+                Thread.sleep(20000); // Sleep for 60 seconds
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -93,6 +101,8 @@ public class Node_Queue_Size_Custom_Metrics {
                 .asString();
 		JsonPath jsonPath = new JsonPath(hubResponse);
         int gridSessionQueueSize = jsonPath.getInt("data.grid.sessionQueueSize");
+        
+        sessionQueueSize.set(gridSessionQueueSize);
 
 		String nodeResponse = RestAssured.given()
                 .contentType("application/json")
